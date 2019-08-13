@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>솔루게이트 채팅방</title>
+    <style>
+        * { 
+			margin: 0; 
+			padding: 0; 
+			box-sizing: border-box;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+		}
+		html, body {
+			font: 10pt arial;
+			width: 100%;
+			height: 100%;
+			padding: 0px;
+			margin: 0px;
+		}
+		div {
+			float:left;
+			font-size: 12px;
+		}
+		div#left{
+			width:70%; 
+			height:100%;
+			overflow-y:auto;
+			border-right:1px solid #555555;
+			
+		}
+		div#right{
+			width:30%; 
+			height:100%;
+			overflow-y:auto;
+			
+		}
+        body { 
+			font: 13px Helvetica, Arial; 
+		}
+        form { 
+			background: #fff; 
+			padding: 3px; 
+			position: fixed; 
+			bottom: 0; 
+			width: 100%; 
+			border-color: #000; 
+			border-top-style: solid; 
+			border-top-width: 1px;
+		}
+        form input { 
+			border-style: solid; 
+			border-width: 1px; 
+			padding: 10px; 
+			width: 85%; 
+			margin-right: .5%; 
+		}
+        form button { 
+			width: 9%; 
+			background: rgb(130, 224, 255); 
+			border: none; 
+			padding: 10px; 
+			margin-left: 2%; 
+		}
+        #messages { 
+			list-style-type: none; 
+			margin: 0; 
+			padding: 0; 
+		}
+        #messages li { 
+			padding: 5px 10px; 
+		}
+        #messages li:nth-child(odd) { 
+			background: #eee; 
+		}
+		#info {
+			list-style-type: none; 
+			margin: 0; 
+			padding: 0;
+			color:#ffffff;
+		}
+		#questionList li { 
+			padding: 5px 10px; 
+			cursor:pointer;
+		}
+		#questionList li:hover{
+			text-decoration:underline;
+		}
+		div#r_top{
+			width:100%;
+			height:30%;
+			border-bottom : 1px solid #555555;
+			overflow-y:auto;
+		}
+		div#r_bottom{
+			width:100%;
+			height:70%;
+			overflow-y:auto;
+			padding: 5px 10px;
+		}
+		.on {
+		  position: fixed; /* Sit on top of the page content */
+		  width: 100%; /* Full width (cover the whole page) */
+		  height: 100px; /* Full height (cover the whole page) */
+
+		  right: 0;
+
+		  background-color: rgba(0,0,0,0.5); /* Black background with opacity */
+		  z-index: 3; /* Specify a stack order in case you're using a different order for other elements */
+		  cursor: pointer; /* Add a pointer on hover */
+		  overflow-y:auto;
+		}
+		.off{
+			display: none; /* Hidden by default */
+		}
+    </style>
+    <script src="../../socket.io/socket.io.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+  </head>
+  <body>
+	<div id="left">
+		<ul id="messages"></ul>
+		<form action="/" method="POST" id="chatForm">
+			<input id="txt" autocomplete="off" autofocus="on" oninput="isTyping()" placeholder="type your message here..." /><button>Send</button>
+		</form>
+	</div>
+	<div id="right">
+		<div id="r_top">
+			<ul id="questionList"></ul>
+		</div>
+		<div id="r_bottom">
+		</div>
+	</div>
+	
+    
+    <script>
+			//get Knowledge
+			function fnGetKnowledge(obj){
+				var knowledge = obj.getAttribute("id");
+				$('div#r_bottom').empty();
+				$('div#r_bottom').append(knowledge);
+			}
+			// view keyword Information
+			function viewKeywordInfo(info){
+				if(info.length>0){
+					$('ul#questionList').empty();
+					$('ul#r_bottom').empty();
+					if(info.length == 1){
+						$('div#r_bottom').empty();
+						var info_jo = info[0];
+						var keyword = info_jo['keyword'];
+						var information = info_jo['information'];
+						var info_html = keyword+" : "+information;		
+						htmlLI = "<li id='"+information+"' onclick='fnGetKnowledge(this)'>"+keyword+"</li>";
+						$('ul#questionList').append(htmlLI);	
+						$('div#r_bottom').append(information);						
+					}else{
+						var htmlLI = "";
+						for(var i=0; i<info.length; i++){
+							var info_jo = info[i];
+							var keyword = info_jo['keyword'];
+							var information = info_jo['information'];
+							var info_html = keyword+" : "+information;		
+							htmlLI = "<li id='"+information+"' onclick='fnGetKnowledge(this)'>"+keyword+"</li>";
+							$('ul#questionList').append(htmlLI);
+						}
+					}
+				}	
+			}
+            var socket = io.connect('http://localhost:3000');
+            // submit text message without reload/refresh the page
+            $('form').submit(function(e){
+                e.preventDefault(); // prevents page reloading
+                socket.emit('chat_message', $('#txt').val());
+                $('#txt').val('');
+                return false;
+            });
+            // append the chat text message
+            socket.on('chat_message', function(msg){
+				 $('#messages').append($('<li>').html(msg));
+            });
+			// append the information
+			socket.on('information',function(info){
+				console.log(info);
+				viewKeywordInfo(info);
+			});
+			
+            // append text if someone is online
+            socket.on('is_online', function(username) {
+                $('#messages').append($('<li>').html(username));
+				if(username.indexOf("상담사")==-1){
+					var message = '<strong>' + '상담사' + '</strong>: ' + '반갑습니다. 솔루게이트입니다. 무엇을 도와드릴까요?';
+					$('#messages').append($('<li>').html(message));
+				}
+            });
+			// append text if someone is offline
+            socket.on('is_offline', function(username) {
+				$('div#r_bottom').empty();
+				$('ul#questionList').empty();
+                $('#messages').append($('<li>').html(username));
+				$('#messages').empty();
+				$('#info').empty();
+            });
+            // ask username
+            var username = prompt('Please tell me your name');
+            socket.emit('username', username);
+    </script>
+  </body>
+</html>
